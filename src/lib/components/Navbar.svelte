@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { fbState } from '$lib/globalStates.svelte';
 	import { getAuth } from 'firebase/auth';
-	let { isFixed = false } = $props();
+	let { isFixed = false, isSignUp = false, isLogIn = false } = $props();
 
 	let loggedIn = $derived(!!fbState.user);
 
@@ -14,9 +14,9 @@
 <nav
 	class="flex items-center border-b bg-slate-50 px-8 py-3 {isFixed
 		? 'fixed left-0 right-0 top-0'
-		: 'w-full'}"
+		: 'sticky left-0 right-0 top-0'}"
 >
-	<div class="flex items-center space-x-2">
+	<a class="flex items-center space-x-2" href="/">
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			width="24"
@@ -34,14 +34,18 @@
 			<path d="M12 13h.01" />
 		</svg>
 		<h1 class="text-2xl font-bold">Pager</h1>
-	</div>
+	</a>
 	<div class="flex flex-grow items-center justify-end space-x-4">
 		{#if loggedIn}
 			<p>Hi, {!!fbState.user ? fbState.user.email : ''}</p>
 			<Button on:click={logOut}>Logout</Button>
 		{:else}
-			<Button href="/auth" variant="outline">Sign up</Button>
-			<Button href="/auth" variant="default">Login</Button>
+			<Button
+				href="/auth?sign_up=1"
+				variant={isLogIn ? 'default' : 'outline'}
+				class={isSignUp ? 'hidden' : ''}>Sign up</Button
+			>
+			<Button href="/auth" variant="default" class={isLogIn ? 'hidden' : ''}>Log in</Button>
 		{/if}
 	</div>
 </nav>
