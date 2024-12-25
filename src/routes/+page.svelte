@@ -1,29 +1,21 @@
 <script lang="ts">
 	import Footer from '$lib/components/Footer.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
+	import { fbState } from '$lib/globalStates.svelte';
 
-	import { PUBLIC_SITE_URL, PUBLIC_APPWRITE_PROJECT_ID } from '$env/static/public';
-	import { Client, Account } from 'appwrite';
-
-	const client = new Client()
-		.setEndpoint('https://cloud.appwrite.io/v1')
-		.setProject(PUBLIC_APPWRITE_PROJECT_ID);
-
-	const account = new Account(client);
-
-	const session = account.getSession('current');
+	let loggedIn = $derived(!!fbState.user);
 </script>
 
-{#await session then}
+{#if loggedIn}
 	<div class="flex min-h-screen flex-col items-center justify-center text-center">
-		<Navbar isFixed={false} loggedIn={true} />
+		<Navbar isFixed={false} />
 		<div class="flex flex-grow flex-col items-center justify-center p-12">
 			<h1 class="text-4xl font-bold">Welcome to Pager</h1>
 			<p class="mt-4 text-lg">WIP</p>
 		</div>
 		<Footer />
 	</div>
-{:catch error}
+{:else}
 	<div class="flex min-h-screen flex-col items-center justify-center text-center">
 		<Navbar isFixed={false} />
 		<div class="flex flex-grow flex-col items-center justify-center p-12">
@@ -34,4 +26,4 @@
 		</div>
 		<Footer />
 	</div>
-{/await}
+{/if}

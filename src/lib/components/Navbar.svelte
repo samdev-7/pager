@@ -1,19 +1,13 @@
 <script lang="ts">
-	import { PUBLIC_APPWRITE_PROJECT_ID } from '$env/static/public';
 	import { Button } from '$lib/components/ui/button';
-	import { Account, Client } from 'appwrite';
-	let { isFixed = true, loggedIn = false } = $props();
+	import { fbState } from '$lib/globalStates.svelte';
+	import { getAuth } from 'firebase/auth';
+	let { isFixed = false } = $props();
 
-	const client = new Client()
-		.setEndpoint('https://cloud.appwrite.io/v1')
-		.setProject(PUBLIC_APPWRITE_PROJECT_ID);
+	let loggedIn = $derived(!!fbState.user);
 
-	const account = new Account(client);
-
-	function logout() {
-		account.deleteSession('current').then(() => {
-			window.location.href = '/';
-		});
+	function logOut() {
+		getAuth().signOut();
 	}
 </script>
 
@@ -43,7 +37,8 @@
 	</div>
 	<div class="flex flex-grow items-center justify-end space-x-4">
 		{#if loggedIn}
-			<Button on:click={logout}>Logout</Button>
+			<p>Hi, {!!fbState.user ? fbState.user.email : ''}</p>
+			<Button on:click={logOut}>Logout</Button>
 		{:else}
 			<Button href="/auth" variant="outline">Sign up</Button>
 			<Button href="/auth" variant="default">Login</Button>

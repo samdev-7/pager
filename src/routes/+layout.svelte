@@ -1,10 +1,15 @@
 <script lang="ts">
+	import { fbState } from '$lib/globalStates.svelte';
 	import '../app.css';
 	let { children } = $props();
+
+	$effect(() => console.log(fbState.user));
 </script>
 
 <svelte:head>
 	<title>Pager</title>
 </svelte:head>
 
-{@render children()}
+{#if fbState.user != false}
+	{@render children()}
+{/if}
