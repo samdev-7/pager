@@ -29,7 +29,7 @@ const fbConfig: FirebaseOptions = {
 	measurementId: PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-export async function initFirebase() {
+export async function initFirebaseClient() {
 	if (!browser) throw new Error('Firebase must be initialized in the browser');
 	const app = initializeApp(fbConfig);
 	const auth = getAuth(app);
@@ -37,4 +37,9 @@ export async function initFirebase() {
 	onAuthStateChanged(auth, (user) => {
 		fbState.user = user;
 	});
+}
+
+export async function getClientToken() {
+	if (!browser) throw new Error('Firebase must be used in the browser');
+	return await getAuth().currentUser?.getIdToken();
 }

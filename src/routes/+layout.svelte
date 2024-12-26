@@ -2,8 +2,6 @@
 	import { fbState } from '$lib/globalStates.svelte';
 	import '../app.css';
 	let { children } = $props();
-
-	$effect(() => console.log(fbState.user));
 </script>
 
 <svelte:head>

@@ -1,0 +1,107 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // user profiles
+    match /users/{userId} {
+      function isJoinCode(code) {
+        return code is string && code.size() == 6 && code.matches('^[A-Z0-9]+$');
+      }
+
+      function isValid() {
+        return (request.resource.data.keys().hasOnly(['name']) || request.resource.data.keys().hasOnly(['join_code', 'name'])) &&
+        (!('join_code' in request.resource.data.keys()) || isJoinCode(request.resource.data.join_code)) &&
+        isAlphaNumericSpace(request.resource.data.name) && 
+        request.resource.data.name.size() <= 32 &&
+        request.resource.data.name.size() >= 2;
+      }
+
+      // Allow users to read the profile of a user if they have their uid
+      allow get: if isSignedIn();
+
+      // Allow users to update values in their own profile
+      // or create their user profile if it doesn't exist yet
+      allow update, create: if belongsTo(userId) && isValid();
+    }
+
+    // teams
+    match /teams/{teamId} {
+      function isViewer() {
+        return request.auth.uid in resource.data.viewer_uids;
+      }
+
+      function isAdmin() {
+        return request.auth.uid in resource.data.admin_uids;
+      }
+
+      function isOwner() {
+        return request.auth.uid == resource.data.owner_uid;
+      }
+
+      function onlyAddedSelfToViewer() {
+        return request.resource.data.viewer_uids.size() == resource.data.viewer_uids.size() + 1 && 
+        request.resource.data.viewer_uids.hasAll(resource.data.viewer_uids) &&
+        request.auth.uid in request.resource.data.viewer_uids &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewer_uids']) &&
+        request.resource.data.keys() == resource.data.keys();
+      }
+
+      function onlyRemovedSelfFromViewer() {
+        return request.resource.data.viewer_uids.size() == resource.data.viewer_uids.size() - 1 && 
+        resource.data.viewer_uids.removeAll(request.resource.data.viewer_uids)[0] == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewer_uids']) &&
+        request.resource.data.keys() == resource.data.keys();
+      }
+
+      function onlyRemovedSelfFromAdmin() {
+        return request.resource.data.admin_uids.size() == resource.data.admin_uids.size() - 1 && 
+        resource.data.admin_uids.removeAll(request.resource.data.admin_uids)[0] == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['admin_uids']) &&
+        request.resource.data.keys() == resource.data.keys();
+      }
+
+      function hasCode() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.join_code == resource.data.join_code;
+      }
+
+    // function isValid() {
+      //   return request.resource.data.keys() == ['name', 'owner_uid', 'admin_uid'] &&
+      //   isAlphaNumericSpace(request.resource.data.name) && 
+      //   request.resource.data.name.size() <= 32 && 
+      //   request.resource.data.name.size() >= 2 &&
+      //   request.resource.data.public is bool;
+      // }
+
+      // Allow users to read the teams they have viewing access to
+      allow get, list: if isSignedIn() && isViewer();
+
+      // Allow users with the join code to find and join the team
+      allow list: if isSignedIn() && hasCode();
+      allow update: if isSignedIn() && hasCode() && onlyAddedSelfToViewer();
+
+      // Allow viewers to leave the team
+      allow update: if isSignedIn() && isViewer() && onlyRemovedSelfFromViewer() && !isAdmin() && !isOwner();
+
+      // Allow admins to become viewers
+      allow update: if isSignedIn() && isAdmin() && onlyRemovedSelfFromAdmin() && !isOwner();
+    }
+
+
+    function isAlphaNumericSpace(value) {
+      return value is string && value.matches('^[a-zA-Z0-9 ]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function belongsTo(correctId) {
+      return isSignedIn() && request.auth.uid == correctId;
+    }
+
+  }
+}
