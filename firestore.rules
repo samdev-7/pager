@@ -8,16 +8,10 @@ service cloud.firestore {
 
     // user profiles
     match /users/{userId} {
-      function isJoinCode(code) {
-        return code is string && code.size() == 6 && code.matches('^[A-Z0-9]+$');
-      }
-
       function isValid() {
-        return (request.resource.data.keys().hasOnly(['name']) || request.resource.data.keys().hasOnly(['join_code', 'name'])) &&
-        (!('join_code' in request.resource.data.keys()) || isJoinCode(request.resource.data.join_code)) &&
+        return keysMatch(['name']) &&
         isAlphaNumericSpace(request.resource.data.name) && 
-        request.resource.data.name.size() <= 32 &&
-        request.resource.data.name.size() >= 2;
+        lengthBetween(request.resource.data.name, 2, 32);
       }
 
       // Allow users to read the profile of a user if they have their uid
@@ -25,7 +19,20 @@ service cloud.firestore {
 
       // Allow users to update values in their own profile
       // or create their user profile if it doesn't exist yet
-      allow update, create: if belongsTo(userId) && isValid();
+      allow update, create: if idMatches(userId) && isValid();
+
+      // Allow users to update their private info
+      match /private/(default) {
+        function isValidPrivate() {
+          return request.resource.data.keys().hasOnly(['join_code']) && 
+          (!('join_code' in request.resource.data.keys()) ||
+          request.resource.data.join_code is string && 
+          request.resource.data.join_code.matches('^[A-Z0-9]{6}$'));
+        }
+
+        allow get: if idMatches(userId);
+        allow create, update: if idMatches(userId) && isValidPrivate();
+      }
     }
 
     // teams
@@ -34,72 +41,152 @@ service cloud.firestore {
         return request.auth.uid in resource.data.viewer_uids;
       }
 
-      function isAdmin() {
-        return request.auth.uid in resource.data.admin_uids;
+      function isMember() {
+        return request.auth.uid in resource.data.member_uids;
       }
 
       function isOwner() {
         return request.auth.uid == resource.data.owner_uid;
       }
 
+      function noDuplicateUsers() {
+        return request.resource.data.viewer_uids.size() == request.resource.data.viewer_uids.toSet().size() &&
+        request.resource.data.member_uids.size() == request.resource.data.member_uids.toSet().size();
+      }
+
       function onlyAddedSelfToViewer() {
-        return request.resource.data.viewer_uids.size() == resource.data.viewer_uids.size() + 1 && 
-        request.resource.data.viewer_uids.hasAll(resource.data.viewer_uids) &&
-        request.auth.uid in request.resource.data.viewer_uids &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewer_uids']) &&
-        request.resource.data.keys() == resource.data.keys();
+        return onlyModifiedFrom(['viewer_uids']) &&
+        addedItemToArray('viewer_uids', request.auth.uid) &&
+        keysAreUnmodified();
       }
 
       function onlyRemovedSelfFromViewer() {
-        return request.resource.data.viewer_uids.size() == resource.data.viewer_uids.size() - 1 && 
-        resource.data.viewer_uids.removeAll(request.resource.data.viewer_uids)[0] == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewer_uids']) &&
-        request.resource.data.keys() == resource.data.keys();
+        return onlyModifiedFrom(['viewer_uids']) &&
+        removedItemFromArray('viewer_uids', request.auth.uid) &&
+        keysAreUnmodified();
       }
 
-      function onlyRemovedSelfFromAdmin() {
-        return request.resource.data.admin_uids.size() == resource.data.admin_uids.size() - 1 && 
-        resource.data.admin_uids.removeAll(request.resource.data.admin_uids)[0] == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['admin_uids']) &&
-        request.resource.data.keys() == resource.data.keys();
+      function onlyRemovedSelfFromMember() {
+        return onlyModifiedFrom(['member_uids']) && 
+        removedItemFromArray('member_uids', request.auth.uid) &&
+        keysAreUnmodified();
+      }
+
+      function allMembersAreViewers() {
+        return request.resource.data.viewer_uids.hasAll(request.resource.data.member_uids);
+      }
+
+      function ownerIsMember() {
+        return request.resource.data.owner_uid in request.resource.data.member_uids;
+      }
+
+      function onlyModifiedMembers() {
+        return onlyModifiedFrom(['member_uids']) && 
+        allMembersAreViewers() &&
+        ownerIsMember() &&
+        keysAreUnmodified();
+      }
+
+      function onlyRemovedViewers() {
+        return onlyModifiedFrom(['viewer_uids']) &&
+        request.resource.data.viewer_uids.size() < resource.data.viewer_uids.size() &&
+        resource.data.viewer_uids.hasAll(request.resource.data.viewer_uids) &&
+        allMembersAreViewers() &&
+        keysAreUnmodified();
       }
 
       function hasCode() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.join_code == resource.data.join_code;
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid)/private/(default)) && get(/databases/$(database)/documents/users/$(request.auth.uid)/private/(default)).data.join_code == resource.data.join_code;
       }
 
-    // function isValid() {
-      //   return request.resource.data.keys() == ['name', 'owner_uid', 'admin_uid'] &&
-      //   isAlphaNumericSpace(request.resource.data.name) && 
-      //   request.resource.data.name.size() <= 32 && 
-      //   request.resource.data.name.size() >= 2 &&
-      //   request.resource.data.public is bool;
-      // }
+      function isValidCreation() {
+        return keysMatch(['name', 'owner_uid', 'member_uids', 'viewer_uids']) &&
+        isAlphaNumericSpace(request.resource.data.name) &&
+        lengthBetween(request.resource.data.name, 2, 32) &&
+        request.resource.data.owner_uid == request.auth.uid &&
+        request.resource.data.member_uids == [request.auth.uid] &&
+        request.resource.data.viewer_uids == [request.auth.uid];
+      }
+
+      function isValidUpdate() {
+        return isAlphaNumericSpace(request.resource.data.name) &&
+        lengthBetween(request.resource.data.name, 2, 32) &&
+        keysAreUnmodified();
+      }
+
+      function onlyRemovedJoinCode() {
+        return keysMatch(['name', 'owner_uid', 'member_uids', 'viewer_uids']) &&
+        onlyModifiedFrom(['join_code']);
+      }
 
       // Allow users to read the teams they have viewing access to
       allow get, list: if isSignedIn() && isViewer();
 
-      // Allow users with the join code to find and join the team
+      // Allow viewers to self->leave the team
+      allow update: if isSignedIn() && isViewer() && !isMember() && !isOwner() && onlyRemovedSelfFromViewer() && noDuplicateUsers();
+
+      // Allow members to self->viewer
+      allow update: if isSignedIn() && isMember() && !isOwner() && onlyRemovedSelfFromMember() && noDuplicateUsers();
+
+      // Allow members to viewers<->members
+      allow update: if isSignedIn() && isMember() && onlyModifiedMembers() && noDuplicateUsers();
+
+      // Allow members to viewers->leave the team
+      allow update: if isSignedIn() && isMember() && onlyRemovedViewers() && noDuplicateUsers();
+
+      // Allow creation of a team
+      allow create: if isSignedIn() && isValidCreation(); 
+
+      // Allow the owner to update the team name
+      allow update: if isSignedIn() && isOwner() && isValidUpdate();
+
+      // Allow the owner to remove the join code
+      allow update: if isSignedIn() && isOwner() && onlyRemovedJoinCode();
+
+      // Allow users with the join code to self->viewer
       allow list: if isSignedIn() && hasCode();
       allow update: if isSignedIn() && hasCode() && onlyAddedSelfToViewer();
-
-      // Allow viewers to leave the team
-      allow update: if isSignedIn() && isViewer() && onlyRemovedSelfFromViewer() && !isAdmin() && !isOwner();
-
-      // Allow admins to become viewers
-      allow update: if isSignedIn() && isAdmin() && onlyRemovedSelfFromAdmin() && !isOwner();
     }
 
+  // function isUnmodified(key) {
+    //   return request.resource.data[key] == resource.data[key];
+    // }
+
+    function keysAreUnmodified() {
+      return request.resource.data.keys().hasAll(resource.data.keys()) && request.resource.data.keys().size() == resource.data.keys().size();
+    }
+
+    function onlyModifiedFrom(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    function removedItemFromArray(key, item) {
+      return request.resource.data[key].size() == resource.data[key].size() - 1 && 
+      resource.data[key].removeAll(request.resource.data[key])[0] == item;
+    }
+
+    function addedItemToArray(key, item) {
+      return request.resource.data[key].size() == resource.data[key].size() + 1 && 
+      request.resource.data[key].removeAll(resource.data[key])[0] == item;
+    }
+
+    function keysMatch(keys) {
+      return request.resource.data.keys().hasAll(keys) && request.resource.data.keys().size() == keys.size();
+    }
 
     function isAlphaNumericSpace(value) {
       return value is string && value.matches('^[a-zA-Z0-9 ]+$');
+    }
+
+    function lengthBetween(value, min, max) {
+      return value.size() >= min && value.size() <= max;
     }
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function belongsTo(correctId) {
+    function idMatches(correctId) {
       return isSignedIn() && request.auth.uid == correctId;
     }
 
