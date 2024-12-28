@@ -24,7 +24,7 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 
-	import { fbState } from '$lib/globalStates.svelte';
+	import { AuthState, fbState } from '$lib/globalStates.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -37,11 +37,9 @@
 
 	let signInProcesessing = $state(false);
 
-	console.log(data);
-
 	$effect(() => {
-		if (!!fbState.user) {
-			goto(data.next);
+		if (fbState.state == AuthState.LOGGED_IN) {
+			goto(fbState.data != undefined ? data.next : `/auth/onboarding?next=${data.next}`);
 		}
 	});
 
@@ -209,7 +207,7 @@
 							<path d="M12 20h.01" />
 							<path d="M17 18h.5a1 1 0 0 0 0-9h-1.79A7 7 0 1 0 7 17.708" />
 						</svg>
-						<Alert.Title>Authentication Failed</Alert.Title>
+						<Alert.Title>Authentication failed</Alert.Title>
 						<Alert.Description>
 							{errorMessage || 'Unknown error.'}
 						</Alert.Description>

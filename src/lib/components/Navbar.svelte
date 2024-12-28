@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { fbState } from '$lib/globalStates.svelte';
+	import { AuthState, fbState } from '$lib/globalStates.svelte';
 	import { getAuth } from 'firebase/auth';
 	let { isFixed = false, isSignUp = false, isLogIn = false } = $props();
 
-	let loggedIn = $derived(!!fbState.user);
+	let loggedIn = $derived(fbState.state == AuthState.LOGGED_IN);
 
 	function logOut() {
 		getAuth().signOut();
@@ -37,8 +37,10 @@
 	</a>
 	<div class="flex flex-grow items-center justify-end space-x-4">
 		{#if loggedIn}
-			<p>Hi, {!!fbState.user ? fbState.user.email : ''}</p>
-			<Button on:click={logOut}>Logout</Button>
+			{#if fbState.data}
+				<p>Hi, {fbState.data.name}</p>
+			{/if}
+			<Button onclick={logOut}>Logout</Button>
 		{:else}
 			<Button
 				href="/auth?sign_up=1"
