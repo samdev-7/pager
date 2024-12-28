@@ -16,6 +16,11 @@
 		<div class="flex flex-grow flex-col items-center justify-center p-12">
 			<h1 class="text-4xl font-bold">Welcome to Pager</h1>
 			<p class="mt-4 text-lg">WIP</p>
+			<a
+				href="/teams/test
+			">404 team</a
+			>
+			<a href="/teams/hfNOpcpOzpsvuaXgA7NP">test team</a>
 		</div>
 	{:else}
 		<div class="flex flex-grow flex-col items-center justify-center space-y-8 p-12">

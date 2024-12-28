@@ -5,11 +5,12 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
-	import { AuthState, fbState } from '$lib/globalStates.svelte';
+	import { fbState } from '$lib/globalStates.svelte';
 	import type { PageData } from './$types';
 	import { Input } from '$lib/components/ui/input';
 	import { setUserData } from '$lib/firebase.client';
 	import type { User } from 'firebase/auth';
+	import { AuthState } from '$lib/firebaseTypes';
 
 	let { data }: { data: PageData } = $props();
 

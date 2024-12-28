@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { AuthState, fbState } from '$lib/globalStates.svelte';
+	import { AuthState } from '$lib/firebaseTypes';
+	import { fbState } from '$lib/globalStates.svelte';
 	import { getAuth } from 'firebase/auth';
-	let { isFixed = false, isSignUp = false, isLogIn = false } = $props();
+	let { isFixed = false, isSignUp = false, isLogIn = false, team = '', teamId = '' } = $props();
 
 	let loggedIn = $derived(fbState.state == AuthState.LOGGED_IN);
 
@@ -12,9 +13,9 @@
 </script>
 
 <nav
-	class="flex items-center border-b bg-slate-50 px-8 py-3 {isFixed
+	class="flex items-center border-b bg-white px-8 py-3 {isFixed
 		? 'fixed left-0 right-0 top-0'
-		: 'sticky left-0 right-0 top-0'}"
+		: 'sticky w-full'}"
 >
 	<a class="flex items-center space-x-2" href="/">
 		<svg
@@ -35,10 +36,14 @@
 		</svg>
 		<h1 class="text-2xl font-bold">Pager</h1>
 	</a>
+	{#if team}
+		<p class="px-4">/</p>
+		<a href={`/teams/${teamId}`}>{team}</a>
+	{/if}
 	<div class="flex flex-grow items-center justify-end space-x-4">
 		{#if loggedIn}
-			{#if fbState.data}
-				<p>Hi, {fbState.data.name}</p>
+			{#if !fbState.user?.isAnonymous}
+				<p>Hi, {fbState.data?.name}</p>
 			{/if}
 			<Button onclick={logOut}>Logout</Button>
 		{:else}

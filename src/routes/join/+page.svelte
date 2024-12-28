@@ -12,13 +12,13 @@
 		getPublicUserData,
 		getTeamsWithJoinCode,
 		joinTeam,
-		setUserData,
-		type FbTeamData
+		setUserData
 	} from '$lib/firebase.client';
 	import { Input } from '$lib/components/ui/input';
-	import { AuthState, fbState } from '$lib/globalStates.svelte';
-	import { getAuth, signInAnonymously, type User, type UserCredential } from 'firebase/auth';
+	import { fbState } from '$lib/globalStates.svelte';
+	import { getAuth, signInAnonymously, type User } from 'firebase/auth';
 	import { goto } from '$app/navigation';
+	import { AuthState, type FbTeamData } from '$lib/firebaseTypes';
 
 	let hasPermAccount = $derived(
 		!(fbState.state == AuthState.LOGGED_OUT || fbState.user?.isAnonymous)
@@ -122,6 +122,10 @@
 
 		previewTeamOwnerName = (await getPublicUserData(previewTeam.owner_uid))?.name || null;
 		confirmStep = true;
+
+		setTimeout(() => {
+			isLoading = false;
+		}, 1000);
 	}
 
 	async function onConfirm() {
@@ -133,10 +137,6 @@
 			return;
 		}
 		goto('/teams/' + previewTeamId);
-	}
-
-	async function onConfirmCancel() {
-		isLoading = false;
 	}
 </script>
 
@@ -247,10 +247,8 @@
 			</AlertDialog.Header>
 			<AlertDialog.Footer>
 				<form onsubmit={onConfirm}>
-					<AlertDialog.Cancel
-						type="button"
-						onclick={onConfirmCancel}
-						disabled={isLoadingConfirmStep}>Cancel</AlertDialog.Cancel
+					<AlertDialog.Cancel type="button" disabled={isLoadingConfirmStep}
+						>Cancel</AlertDialog.Cancel
 					>
 					<AlertDialog.Action type="submit" disabled={isLoadingConfirmStep}
 						>Join {previewTeam?.name ?? ''}</AlertDialog.Action

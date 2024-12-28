@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { initializeApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
-import { AuthState, fbState } from './globalStates.svelte';
+import { fbState } from './globalStates.svelte';
 import {
 	PUBLIC_FIREBASE_API_KEY,
 	PUBLIC_FIREBASE_APP_ID,
@@ -23,6 +23,12 @@ import {
 	updateDoc,
 	where
 } from 'firebase/firestore';
+import {
+	AuthState,
+	type FbPrivateUserData,
+	type FbTeamData,
+	type FbUserData
+} from './firebaseTypes';
 
 const fbConfig: FirebaseOptions = {
 	apiKey: PUBLIC_FIREBASE_API_KEY,
@@ -50,22 +56,6 @@ export async function initFirebaseClient() {
 		fbState.state = user ? AuthState.LOGGED_IN : AuthState.LOGGED_OUT;
 	});
 }
-
-export type FbUserData = {
-	name: string;
-};
-
-export type FbPrivateUserData = {
-	join_code?: string;
-};
-
-export type FbTeamData = {
-	name: string;
-	join_code?: string;
-	owner_uid: string;
-	member_uids: string[];
-	viewer_uids: string[];
-};
 
 export async function getClientToken() {
 	if (!browser) throw new Error('Firebase must be used in the browser');
@@ -125,6 +115,11 @@ export async function joinTeam(user: User, teamid: string) {
 	await updateDoc(doc(getFirestore(), `teams/${teamid}`), {
 		viewer_uids: arrayUnion(user.uid)
 	});
+}
+
+export async function getTeam(teamid: string) {
+	// if permission is denied, return undefined
+	return (await getDoc(doc(getFirestore(), `teams/${teamid}`))).data() as FbTeamData | undefined;
 }
 
 export async function getPublicUserData(uid: string) {

@@ -24,7 +24,8 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 
-	import { AuthState, fbState } from '$lib/globalStates.svelte';
+	import { fbState } from '$lib/globalStates.svelte';
+	import { AuthState } from '$lib/firebaseTypes';
 
 	let { data }: { data: PageData } = $props();
 

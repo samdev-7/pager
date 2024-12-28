@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { AuthState, fbState } from '$lib/globalStates.svelte';
+	import { AuthState } from '$lib/firebaseTypes';
+	import { fbState } from '$lib/globalStates.svelte';
 	import '../app.css';
+	import '@fontsource-variable/inter';
+
 	let { children } = $props();
 
 	$effect(() => {
@@ -19,6 +22,6 @@
 
 {#if fbState.state != AuthState.LOADING}
 	{@render children()}
-{:else}
-	<h1>Loading...</h1>
+	<!-- {:else}
+	<h1>Loading...</h1> -->
 {/if}

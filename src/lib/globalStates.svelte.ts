@@ -1,16 +1,22 @@
 import type { User } from 'firebase/auth';
-import { type FbUserData } from './firebase.client';
+import { AuthState, TeamState, type FbTeamData, type FbUserData } from './firebaseTypes';
 
-export enum AuthState {
-	LOADING,
-	LOGGED_IN,
-	LOGGED_OUT
-}
-
-export const fbState: {
+export let fbState: {
 	state: AuthState;
 	user?: User | null;
 	data?: FbUserData;
 } = $state({
 	state: AuthState.LOADING
+});
+
+export let teamState: {
+	state: TeamState;
+	teamId?: string;
+	data?: FbTeamData;
+} = $state({
+	state: TeamState.LOADING
+});
+
+export let teamTabState = $state({
+	tab: 'posts'
 });
