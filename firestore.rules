@@ -16,7 +16,15 @@ rules_version = '2';
 //                 ├── join_code?: string - Format: `^[A-Z0-9]{6}$`, unique within `teams`
 //                 ├── owner_uid: string - Corresponding `userId` may not be initialized
 //                 ├── member_uids: string[] - Corresponding `userId`s may not be initialized
-//                 └── viewer_uids: string[] - Corresponding `userId`s may not be initialized
+//                 ├── viewer_uids: string[] - Corresponding `userId`s may not be initialized
+//                 └── posts - May not be initialized
+//                     └── {postId}
+//                         ├── author_uid: string - Corresponding `userId` may not be initialized
+//                         ├── created_at: timestamp
+//                         ├── title: string - Format: `^.{1,100}$`
+//                         ├── content: string - Format: `^.{1,1000}$`
+//                         └── pinned: boolean
+
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -164,6 +172,15 @@ service cloud.firestore {
       // Allow users with the join code to self->viewer
       allow list: if isSignedIn() && hasCode();
       allow update: if isSignedIn() && hasCode() && onlyAddedSelfToViewer();
+
+      // posts
+      match /posts/{postId} {
+        function isViewer() {
+          return request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.viewer_uids;
+        }
+        // Allow viewers to read posts
+        allow get, list: if isSignedIn() && isViewer();
+      }
     }
 
   // function isUnmodified(key) {
