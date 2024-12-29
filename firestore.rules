@@ -17,8 +17,8 @@ rules_version = '2';
 //                 ├── owner_uid: string - Corresponding `userId` may not be initialized
 //                 ├── member_uids: string[] - Corresponding `userId`s may not be initialized
 //                 ├── viewer_uids: string[] - Corresponding `userId`s may not be initialized
-//                 └── posts - May not be initialized
-//                     └── {postId}
+//                 └── alerts - May not be initialized
+//                     └── {alertId}
 //                         ├── author_uid: string - Corresponding `userId` may not be initialized
 //                         ├── created_at: timestamp
 //                         ├── title: string - Format: `^.{1,100}$`
@@ -173,12 +173,12 @@ service cloud.firestore {
       allow list: if isSignedIn() && hasCode();
       allow update: if isSignedIn() && hasCode() && onlyAddedSelfToViewer();
 
-      // posts
-      match /posts/{postId} {
+      // alerts
+      match /alerts/{alertId} {
         function isViewer() {
           return request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.viewer_uids;
         }
-        // Allow viewers to read posts
+        // Allow team viewers to read alerts
         allow get, list: if isSignedIn() && isViewer();
       }
     }
